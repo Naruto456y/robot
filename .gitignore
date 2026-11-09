@@ -1,0 +1,25 @@
+__pycache__/
+*.pyc
+*.log
+logs/
+temp/
+static/videos/
+static/photos/
+*.avi
+*.mp4
+*.wav
+*.onnx
+*.pt
+*.zip
+*.tar.gz
+yolov5*/
+yolov3/
+model/
+model_big/
+weights/
+dify-1.6.0/
+.venv/
+
+# сборочный мусор
+build/
+.ipynb_checkpoints/

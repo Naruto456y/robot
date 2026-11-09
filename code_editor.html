@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>💻 Редактор кода</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/dracula.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #0b0e14; color: #e0e0e0; display: flex; height: 100vh; overflow: hidden; }
+        .sidebar { width: 250px; background: #161c24; border-right: 1px solid #2a313c; display: flex; flex-direction: column; }
+        .sidebar-header { padding: 12px; border-bottom: 1px solid #2a313c; font-size: 14px; display: flex; justify-content: space-between; align-items: center; }
+        .sidebar-header a { color: #e0e0e0; text-decoration: none; font-size: 12px; background: #1f6feb; padding: 4px 8px; border-radius: 4px; }
+        .file-tree { flex: 1; overflow-y: auto; padding: 8px; }
+        .file-tree .entry { padding: 4px 8px; cursor: pointer; border-radius: 4px; font-size: 13px; display: flex; align-items: center; gap: 6px; }
+        .file-tree .entry:hover { background: #21262d; }
+        .file-tree .folder::before { content: '📁 '; }
+        .file-tree .file::before { content: '📄 '; }
+        .main-panel { flex: 1; display: flex; flex-direction: column; }
+        .editor-container { flex: 1; display: flex; }
+        .CodeMirror { height: 100% !important; font-size: 14px; }
+        .editor-wrapper { flex: 1; position: relative; }
+        #saveBtn { position: absolute; top: 8px; right: 16px; z-index: 10; background: #2ea043; border: none; border-radius: 4px; color: white; padding: 4px 12px; cursor: pointer; }
+        .terminal { background: #0b0e14; border-top: 1px solid #2a313c; height: 200px; display: flex; flex-direction: column; }
+        .terminal-header { padding: 4px 12px; background: #161c24; font-size: 12px; border-bottom: 1px solid #2a313c; }
+        #terminalOutput { flex: 1; overflow-y: auto; padding: 8px; font-family: monospace; font-size: 13px; white-space: pre-wrap; }
+        .terminal-input { display: flex; border-top: 1px solid #2a313c; }
+        #cmdInput { flex: 1; background: #0b0e14; border: none; color: #e0e0e0; padding: 6px; font-family: monospace; }
+        .btn { background: #21262d; border: none; border-radius: 4px; padding: 4px 12px; color: #e0e0e0; cursor: pointer; }
+        .resizer { width: 4px; cursor: col-resize; background: #2a313c; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <span>📂 Файлы</span>
+            <a href="/">← Управление</a>
+        </div>
+        <div class="file-tree" id="fileTree"></div>
+    </div>
+    <div class="resizer" id="resizer"></div>
+    <div class="main-panel">
+        <div class="editor-container">
+            <div class="editor-wrapper">
+                <button id="saveBtn" onclick="saveFile()">💾 Сохранить</button>
+                <textarea id="editor"></textarea>
+            </div>
+        </div>
+        <div class="terminal">
+            <div class="terminal-header">⚡ Терминал</div>
+            <div id="terminalOutput">Готов к работе...</div>
+            <div class="terminal-input">
+                <input type="text" id="cmdInput" placeholder="Введите команду..." onkeypress="if(event.key==='Enter')runCommand()">
+                <button class="btn" onclick="runCommand()">Выполнить</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let editor = CodeMirror.fromTextArea(document.getElementById('editor'), {
+            lineNumbers: true,
+            mode: 'python',
+            theme: 'dracula',
+            value: '# Выберите файл для редактирования'
+        });
+        let currentFilePath = null;
+
+        async function loadFileTree(path = '/home/pi') {
+            const res = await fetch('/api/files?base=' + encodeURIComponent(path));
+            const data = await res.json();
+            const tree = document.getElementById('fileTree');
+            tree.innerHTML = `<div class="entry folder" onclick="loadFileTree('${data.path}/..')">⬆️ ..</div>`;
+            data.items.forEach(item => {
+                const div = document.createElement('div');
+                div.className = `entry ${item.type}`;
+                div.textContent = item.name;
+                if (item.type === 'folder') {
+                    div.onclick = () => loadFileTree(item.path);
+                } else {
+                    div.onclick = () => openFile(item.path);
+                }
+                tree.appendChild(div);
+            });
+        }
+
+        async function openFile(path) {
+            const res = await fetch('/api/file?path=' + encodeURIComponent(path));
+            const data = await res.json();
+            if (data.content !== undefined) {
+                editor.setValue(data.content);
+                currentFilePath = path;
+            } else {
+                alert('Ошибка: ' + data.error);
+            }
+        }
+
+        async function saveFile() {
+            if (!currentFilePath) { alert('Сначала откройте файл'); return; }
+            const content = editor.getValue();
+            const res = await fetch('/api/file/save', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({path: currentFilePath, content})
+            });
+            const data = await res.json();
+            if (data.status === 'ok') alert('Файл сохранён!');
+            else alert('Ошибка: ' + data.error);
+        }
+
+        async function runCommand() {
+            const input = document.getElementById('cmdInput');
+            const cmd = input.value.trim();
+            if (!cmd) return;
+            const output = document.getElementById('terminalOutput');
+            output.textContent += '\n$ ' + cmd;
+            input.value = '';
+            const res = await fetch('/api/command', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({cmd})
+            });
+            const data = await res.json();
+            output.textContent += '\n' + data.output;
+            output.scrollTop = output.scrollHeight;
+        }
+
+        // Изменяемый размер боковой панели
+        const resizer = document.getElementById('resizer');
+        const sidebar = document.querySelector('.sidebar');
+        let isResizing = false;
+        resizer.addEventListener('mousedown', (e) => {
+            isResizing = true;
+            document.body.style.userSelect = 'none';
+        });
+        document.addEventListener('mousemove', (e) => {
+            if (!isResizing) return;
+            sidebar.style.width = e.clientX + 'px';
+        });
+        document.addEventListener('mouseup', () => {
+            isResizing = false;
+            document.body.style.userSelect = '';
+        });
+
+        loadFileTree('/home/pi');
+    </script>
+</body>
+</html>

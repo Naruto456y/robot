@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>🤖 Управление роботом</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/nipplejs/0.10.2/nipplejs.min.js"></script>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #0b0e14;
+            color: #e0e0e0;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            padding: 12px;
+        }
+        .container {
+            max-width: 1400px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            background: #161c24;
+            padding: 10px 18px;
+            border-radius: 14px;
+            border: 1px solid #2a313c;
+        }
+        .header h1 {
+            font-size: 22px;
+            background: linear-gradient(135deg, #58a6ff, #f0883e);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .header-buttons { display: flex; gap: 10px; }
+        .btn {
+            background: #21262d; border: none; border-radius: 10px;
+            padding: 10px 16px; color: #e0e0e0; font-size: 14px;
+            cursor: pointer; transition: 0.15s; text-decoration: none;
+            display: inline-flex; align-items: center; justify-content: center;
+        }
+        .btn:hover { background: #30363d; }
+        .btn-primary { background: #1f6feb; }
+        .btn-primary:hover { background: #1751b3; }
+        .btn-success { background: #2ea043; }
+        .btn-success:hover { background: #22863a; }
+        .btn-danger { background: #da3633; }
+        .btn-danger:hover { background: #b62324; }
+        .btn-warning { background: #d29922; }
+        .btn-warning:hover { background: #b8871a; }
+        .status-bar {
+            display: flex; gap: 16px; flex-wrap: wrap;
+            font-size: 13px; color: #8b949e;
+        }
+        .status-item { display: flex; align-items: center; gap: 6px; }
+        .status-item span { color: #e0e0e0; }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 2fr 1fr;
+            gap: 14px;
+            align-items: start;
+        }
+        @media (max-width: 900px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+            .header h1 { font-size: 18px; }
+            .btn { padding: 8px 12px; font-size: 13px; }
+        }
+
+        .card {
+            background: #161c24;
+            border-radius: 14px;
+            padding: 14px;
+            border: 1px solid #2a313c;
+            display: flex;
+            flex-direction: column;
+        }
+        .card h3 {
+            font-size: 14px; color: #8b949e;
+            margin-bottom: 12px; text-transform: uppercase; font-weight: 500;
+        }
+
+        .move-grid, .cam-grid-new {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            max-width: 220px;
+            margin: 0 auto;
+        }
+        .move-btn, .cam-btn-new {
+            background: #21262d;
+            border: none;
+            border-radius: 14px;
+            color: #e0e0e0;
+            font-size: 28px;
+            padding: 14px 0;
+            cursor: pointer;
+            transition: 0.15s;
+            user-select: none;
+            aspect-ratio: 1 / 1;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .move-btn:active, .cam-btn-new:active {
+            transform: scale(0.93);
+            background: #30363d;
+        }
+        .move-btn.stop { background: #da3633; color: white; }
+        .move-btn.stop:active { background: #b62324; }
+        .cam-btn-new.center { background: #1f6feb; }
+
+        .speed-slider { width: 100%; margin-top: 10px; accent-color: #58a6ff; }
+
+        .video-container {
+            background: #000; border-radius: 12px; overflow: hidden;
+            flex: 1; display: flex; align-items: center; justify-content: center;
+            min-height: 260px;
+        }
+        .video-container img { width: 100%; display: block; }
+
+        .tabs {
+            display: flex; gap: 8px; margin-bottom: 12px;
+            border-bottom: 1px solid #2a313c; padding-bottom: 8px;
+            flex-wrap: wrap;
+        }
+        .tab {
+            background: #21262d; border: none; border-radius: 8px;
+            padding: 8px 14px; color: #8b949e; cursor: pointer;
+            font-size: 13px; transition: 0.15s;
+        }
+        .tab.active { background: #1f6feb; color: white; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .output-box {
+            background: #0b0e14; border: 1px solid #2a313c;
+            border-radius: 8px; padding: 10px; min-height: 50px;
+            max-height: 150px; overflow-y: auto; font-size: 14px;
+            white-space: pre-wrap; word-break: break-word; margin-top: 8px;
+        }
+
+        .led-row {
+            display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+        }
+        .led-circle {
+            width: 36px; height: 36px; border-radius: 50%;
+            background: #21262d; border: 2px solid #2a313c;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px; font-weight: bold; cursor: pointer;
+            transition: 0.15s;
+        }
+        .led-circle.on { border-color: #58a6ff; background: #1f6feb; }
+        .color-choices { display: flex; gap: 8px; margin: 8px 0; flex-wrap: wrap; }
+        .color-circle {
+            width: 30px; height: 30px; border-radius: 50%;
+            border: 2px solid #2a313c; cursor: pointer; transition: 0.15s;
+        }
+        .color-circle.selected { border-color: white; box-shadow: 0 0 6px white; }
+
+        .gallery-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+            gap: 8px; max-height: 250px; overflow-y: auto;
+        }
+        .gallery-item {
+            background: #21262d; border-radius: 8px; padding: 4px;
+            text-align: center; cursor: pointer;
+        }
+        .gallery-item img, .gallery-item video {
+            width: 100%; border-radius: 6px; max-height: 120px; object-fit: cover;
+        }
+        .gallery-item .name { font-size: 11px; color: #8b949e; margin-top: 4px; }
+
+        #joystickContainer { display: none; }
+
+        @media (max-width: 600px) {
+            .move-btn, .cam-btn-new { font-size: 22px; padding: 10px 0; }
+            .led-circle { width: 32px; height: 32px; font-size: 13px; }
+            .color-circle { width: 26px; height: 26px; }
+            .tabs { gap: 4px; }
+            .tab { padding: 6px 10px; font-size: 12px; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>🤖 Управление</h1>
+        <div class="header-buttons">
+            <a href="/" class="btn btn-primary" style="background:#2ea043;">🎮 Управление</a>
+            <a href="/cod" class="btn btn-primary">💻 Редактор</a>
+        </div>
+        <div class="status-bar">
+            <span class="status-item">🌐 IP: <span id="ipDisplay">...</span></span>
+            <span class="status-item">💻 CPU: <span id="cpuDisplay">...</span></span>
+            <span class="status-item">🧠 RAM: <span id="ramDisplay">...</span></span>
+        </div>
+    </div>
+
+    <div class="main-grid">
+        <!-- ЛЕВАЯ: Движение -->
+        <div class="card">
+            <h3>🏎️ Движение</h3>
+            <div id="controlZone">
+                <div class="move-grid" id="moveButtons">
+                    <div></div>
+                    <button class="move-btn" id="btnForward">⬆</button>
+                    <div></div>
+                    <button class="move-btn" id="btnLeft">⬅</button>
+                    <button class="move-btn stop" id="btnStop">⏹</button>
+                    <button class="move-btn" id="btnRight">➡</button>
+                    <div></div>
+                    <button class="move-btn" id="btnBackward">⬇</button>
+                    <div></div>
+                </div>
+                <div class="joystick-area" id="joystickContainer">
+                    <div id="joystick"></div>
+                </div>
+            </div>
+            <div style="display:flex; justify-content:center; gap:6px; margin-top:10px;">
+                <button class="btn btn-warning" id="btnRotateLeft">↺</button>
+                <button class="btn btn-warning" id="btnRotateRight">↻</button>
+            </div>
+            <div style="text-align:center; margin-top:8px;">
+                <button class="btn btn-danger" id="btnBeepHold">🔊 зажать</button>
+            </div>
+            <input type="range" min="10" max="255" value="150" class="speed-slider" id="speedSlider">
+            <div style="text-align:center; font-size:13px; color:#8b949e; margin-top:4px;">
+                Скорость: <span id="speedLabel">150</span>
+            </div>
+            <div class="mode-toggle" style="text-align:center; margin-top:8px;">
+                <button id="toggleMode" class="btn btn-primary">Джойстик</button>
+            </div>
+        </div>
+
+        <!-- ЦЕНТР: Видео -->
+        <div class="card">
+            <h3>📹 Трансляция</h3>
+            <div class="video-container" id="videoContainer" style="display:none;">
+                <img id="videoFeed" src="/video_feed" alt="Видео">
+            </div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;">
+                <button class="btn btn-success" id="btnVideoStart">▶️ Старт</button>
+                <button class="btn btn-danger" id="btnVideoStop">⏹ Стоп</button>
+                <button class="btn btn-primary" id="btnPhoto">📸 Фото</button>
+                <button class="btn btn-warning" id="btnRecordVideo">🔴 Запись</button>
+                <button class="btn btn-primary" id="btnScene">🧠 Описать</button>
+                <button class="btn btn-primary" id="btnQR">📋 QR</button>
+            </div>
+            <div id="aiResult" class="output-box">Результаты здесь...</div>
+        </div>
+
+        <!-- ПРАВАЯ: Камера -->
+        <div class="card">
+            <h3>📷 Камера</h3>
+            <div class="cam-grid-new" id="camButtons">
+                <div></div>
+                <button class="cam-btn-new" id="camUp">⬆</button>
+                <div></div>
+                <button class="cam-btn-new" id="camLeft">⬅</button>
+                <button class="cam-btn-new center" id="camCenter">⏺</button>
+                <button class="cam-btn-new" id="camRight">➡</button>
+                <div></div>
+                <button class="cam-btn-new" id="camDown">⬇</button>
+                <div></div>
+            </div>
+            <button class="btn btn-primary" id="camCenterBtn" style="width:100%; margin-top:8px;">Центр</button>
+        </div>
+    </div>
+
+    <!-- НИЖНЯЯ ПАНЕЛЬ С ВКЛАДКАМИ -->
+    <div class="card">
+        <div class="tabs">
+            <button class="tab active" data-tab="effects">✨ Эффекты</button>
+            <button class="tab" data-tab="leds">💡 LED 1-10</button>
+            <button class="tab" data-tab="audio">🎤 Аудио</button>
+            <button class="tab" data-tab="speech">🗣️ Речь</button>
+            <button class="tab" data-tab="gallery">🖼️ Галерея</button>
+        </div>
+
+        <!-- Вкладка эффектов -->
+        <div class="tab-content active" id="effects">
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                <select id="effectSelect" style="background:#21262d; color:#e0e0e0; border:1px solid #2a313c; border-radius:6px; padding:8px;">
+                    <option value="starlight">Звёздное небо</option>
+                    <option value="river">Река</option>
+                    <option value="random_running">Бегущие огни</option>
+                    <option value="gradient">Градиент</option>
+                    <option value="breathing">Дыхание</option>
+                </select>
+                <label style="font-size:13px;">Скорость:</label>
+                <input type="range" id="effectSpeed" min="0.01" max="0.2" step="0.01" value="0.05" style="width:100px;">
+                <button class="btn btn-success" id="btnEffectStart">▶️ Запустить</button>
+                <button class="btn btn-danger" id="btnEffectStop">⏹ Стоп</button>
+            </div>
+        </div>
+
+        <!-- Вкладка светодиодов -->
+        <div class="tab-content" id="leds">
+            <div class="color-choices" id="colorPalette">
+                <div class="color-circle" style="background:#ff0000;" data-color="0"></div>
+                <div class="color-circle" style="background:#00ff00;" data-color="1"></div>
+                <div class="color-circle" style="background:#0000ff;" data-color="2"></div>
+                <div class="color-circle" style="background:#ffff00;" data-color="3"></div>
+                <div class="color-circle" style="background:#ff00ff;" data-color="4"></div>
+                <div class="color-circle" style="background:#00ffff;" data-color="5"></div>
+                <div class="color-circle" style="background:#ffffff;" data-color="6"></div>
+            </div>
+            <div class="led-row" id="ledRow"></div>
+            <button class="btn btn-primary" id="btnAllLeds" style="margin-top:10px;">Вся лента</button>
+        </div>
+
+        <!-- Вкладка Аудио -->
+        <div class="tab-content" id="audio">
+            <div style="display:flex; gap:12px; flex-wrap:wrap;">
+                <div>
+                    <label style="font-size:13px;">🎙️ Запись (сек):</label>
+                    <input type="range" id="recordDuration" min="3" max="15" value="5" step="1" style="width:100px;">
+                    <span id="recordDurationLabel">5</span>
+                    <button class="btn btn-primary" id="btnRecord" style="margin-left:8px;">🔴 Записать</button>
+                </div>
+                <div>
+                    <span id="lastMp3" style="font-size:14px;">Нет файла</span>
+                    <input type="file" id="mp3FileInput" accept=".mp3" style="display:none;">
+                    <button class="btn btn-primary" id="btnUploadPlay">📁 Загрузить и играть</button>
+                </div>
+            </div>
+            <div id="recordResult" style="margin-top:8px; font-size:14px;"></div>
+        </div>
+
+        <!-- Вкладка Речь -->
+        <div class="tab-content" id="speech">
+            <button id="btnToggleSpeech" class="btn btn-primary">Включить распознавание</button>
+            <div class="output-box" id="speechText" style="margin-top:8px;">Субтитры появятся здесь</div>
+            <div style="margin-top:8px; display:flex; gap:8px;">
+                <input type="text" id="sayInput" placeholder="Текст для озвучки..." style="flex:1; background:#0b0e14; border:1px solid #2a313c; border-radius:6px; padding:8px; color:#e0e0e0;">
+                <button class="btn btn-success" id="btnSay">🗣️ Сказать</button>
+            </div>
+        </div>
+
+        <!-- Вкладка Галерея -->
+        <div class="tab-content" id="gallery">
+            <div style="display:flex; gap:8px; margin-bottom:8px;">
+                <button class="btn btn-primary" id="btnRefreshGallery">🔄 Обновить</button>
+                <span style="font-size:13px; color:#8b949e;">Фото и видео</span>
+            </div>
+            <div class="gallery-grid" id="galleryGrid"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ===== ОБЩИЕ ПЕРЕМЕННЫЕ =====
+let speed = 150;
+let videoOn = false;
+let moveInterval = null;
+let joystickMode = 'buttons';
+let selectedColor = 0; // 0-6 (красный по умолчанию)
+let recordingVideo = false;
+let ledStates = new Array(11).fill(false); // индексы 1-10
+
+// ===== ДВИЖЕНИЕ =====
+function sendMove(cmd, spd) {
+    fetch('/api/move', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cmd, speed: parseInt(spd || speed) })
+    }).catch(console.warn);
+}
+
+function setupMoveButton(id, cmd) {
+    const btn = document.getElementById(id);
+    const start = (e) => {
+        e.preventDefault();
+        sendMove(cmd);
+        if (moveInterval) clearInterval(moveInterval);
+        moveInterval = setInterval(() => sendMove(cmd), 100);
+    };
+    const stop = () => {
+        if (moveInterval) { clearInterval(moveInterval); moveInterval = null; }
+        sendMove('stop');
+    };
+    btn.addEventListener('mousedown', start);
+    btn.addEventListener('mouseup', stop);
+    btn.addEventListener('mouseleave', stop);
+    btn.addEventListener('touchstart', start);
+    btn.addEventListener('touchend', stop);
+}
+setupMoveButton('btnForward','forward');
+setupMoveButton('btnBackward','backward');
+setupMoveButton('btnLeft','left');
+setupMoveButton('btnRight','right');
+setupMoveButton('btnStop','stop');
+setupMoveButton('btnRotateLeft','rotate_left');
+setupMoveButton('btnRotateRight','rotate_right');
+
+// Бипер
+const btnBeep = document.getElementById('btnBeepHold');
+btnBeep.addEventListener('mousedown', () => fetch('/api/beep', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({state:true}) }));
+btnBeep.addEventListener('mouseup', () => fetch('/api/beep', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({state:false}) }));
+btnBeep.addEventListener('mouseleave', () => fetch('/api/beep', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({state:false}) }));
+
+// Скорость
+const speedSlider = document.getElementById('speedSlider');
+const speedLabel = document.getElementById('speedLabel');
+speedSlider.addEventListener('input', () => {
+    speed = speedSlider.value;
+    speedLabel.textContent = speed;
+});
+
+// Переключение режимов
+document.getElementById('toggleMode').addEventListener('click', () => {
+    const joystickContainer = document.getElementById('joystickContainer');
+    const buttonsContainer = document.getElementById('moveButtons');
+    if (joystickMode === 'buttons') {
+        joystickMode = 'joystick';
+        joystickContainer.style.display = 'block';
+        buttonsContainer.style.display = 'none';
+        if (!window.joystick) {
+            window.joystick = nipplejs.create({
+                zone: document.getElementById('joystick'),
+                mode: 'static', position: {left:'50%', top:'50%'},
+                color: '#58a6ff', size: 160
+            });
+            window.joystick.on('move', (evt, data) => {
+                const angle = data.angle.degree;
+                const force = data.force;
+                const spd = Math.round(force * 150 + 50);
+                if (force > 0.1) {
+                    let cmd;
+                    if (angle >= 45 && angle < 135) cmd = 'forward';
+                    else if (angle >= 135 && angle < 225) cmd = 'left';
+                    else if (angle >= 225 && angle < 315) cmd = 'backward';
+                    else cmd = 'right';
+                    sendMove(cmd, spd);
+                }
+            });
+            window.joystick.on('end', () => sendMove('stop'));
+        }
+    } else {
+        joystickMode = 'buttons';
+        joystickContainer.style.display = 'none';
+        buttonsContainer.style.display = 'grid';
+        if (window.joystick) { window.joystick.destroy(); window.joystick = null; }
+    }
+});
+
+// ===== КАМЕРА =====
+function sendCamera(direction) {
+    fetch('/api/camera', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ direction })
+    }).catch(console.warn);
+}
+['camUp','camDown','camLeft','camRight','camCenter'].forEach(id => {
+    document.getElementById(id).addEventListener('click', () => {
+        sendCamera(id.replace('cam','').toLowerCase());
+    });
+});
+document.getElementById('camCenterBtn').addEventListener('click', () => sendCamera('center'));
+
+// ===== ВИДЕО =====
+function startVideo() {
+    document.getElementById('videoContainer').style.display = 'block';
+    document.getElementById('videoFeed').src = '/video_feed?_=' + Date.now();
+    videoOn = true;
+}
+function stopVideo() {
+    fetch('/video_stop').then(() => {
+        document.getElementById('videoContainer').style.display = 'none';
+        videoOn = false;
+    });
+}
+document.getElementById('btnVideoStart').addEventListener('click', startVideo);
+document.getElementById('btnVideoStop').addEventListener('click', stopVideo);
+
+document.getElementById('btnPhoto').addEventListener('click', () => {
+    fetch('/api/photo', { method: 'POST' })
+        .then(r => r.json())
+        .then(d => {
+            document.getElementById('aiResult').textContent = d.status === 'ok' ? '📸 Фото сохранено' : '❌ Ошибка';
+        });
+});
+
+document.getElementById('btnRecordVideo').addEventListener('click', function() {
+    if (!recordingVideo) {
+        fetch('/api/record_video_start', { method: 'POST' })
+            .then(r => r.json())
+            .then(d => {
+                if (d.status === 'recording') {
+                    recordingVideo = true;
+                    this.textContent = '⏹ Стоп';
+                    this.classList.add('btn-danger');
+                    document.getElementById('aiResult').textContent = '🔴 Идёт запись...';
+                }
+            });
+    } else {
+        fetch('/api/record_video_stop', { method: 'POST' })
+            .then(r => r.json())
+            .then(d => {
+                recordingVideo = false;
+                this.textContent = '🔴 Запись';
+                this.classList.remove('btn-danger');
+                document.getElementById('aiResult').textContent = '✅ Видео сохранено';
+            });
+    }
+});
+
+document.getElementById('btnScene').addEventListener('click', () => {
+    document.getElementById('aiResult').textContent = '⏳ Описываю...';
+    fetch('/api/describe_scene', { method: 'POST', headers: {'Content-Type':'application/json'}, body: '{}' })
+        .then(r => r.json())
+        .then(d => {
+            if (d.task_id) pollTask(d.task_id);
+            else document.getElementById('aiResult').textContent = '❌ Ошибка';
+        });
+});
+function pollTask(taskId) {
+    const interval = setInterval(() => {
+        fetch('/api/task_status/' + taskId)
+            .then(r => r.json())
+            .then(d => {
+                if (d.status === 'done') {
+                    clearInterval(interval);
+                    document.getElementById('aiResult').textContent = '🧠 ' + d.description;
+                } else if (d.status === 'error') {
+                    clearInterval(interval);
+                    document.getElementById('aiResult').textContent = '❌ ' + d.error;
+                }
+            });
+    }, 1000);
+}
+
+document.getElementById('btnQR').addEventListener('click', () => {
+    document.getElementById('aiResult').textContent = '⏳ Сканирую QR...';
+    fetch('/api/qr', { method: 'POST' })
+        .then(r => r.json())
+        .then(d => {
+            document.getElementById('aiResult').textContent = d.qr ? '📋 QR: ' + d.qr : '❌ Не найден';
+        });
+});
+
+// ===== ТАБЫ =====
+document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        tab.classList.add('active');
+        const target = document.getElementById(tab.dataset.tab);
+        target.classList.add('active');
+        if (tab.dataset.tab === 'gallery') loadGallery();
+    });
+});
+
+// ===== RGB ЭФФЕКТЫ =====
+document.getElementById('btnEffectStart').addEventListener('click', () => {
+    const effect = document.getElementById('effectSelect').value;
+    const speed = parseFloat(document.getElementById('effectSpeed').value);
+    // Просто запускаем эффект, бэкенд сам остановит предыдущий
+    fetch('/api/rgb_effect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ effect, speed })
+    }).catch(console.warn);
+});
+document.getElementById('btnEffectStop').addEventListener('click', () => {
+    fetch('/api/rgb_off', { method: 'POST' });
+});
+
+// ===== LED 1-10 =====
+const ledRow = document.getElementById('ledRow');
+for (let i = 1; i <= 10; i++) {
+    const circle = document.createElement('div');
+    circle.className = 'led-circle';
+    circle.textContent = i;
+    circle.dataset.index = i;
+    circle.addEventListener('click', () => {
+        const idx = parseInt(circle.dataset.index);
+        // Переключаем состояние
+        if (ledStates[idx]) {
+            // Выключаем
+            fetch('/api/rgb_led', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ index: idx, color: -1 })
+            });
+            circle.classList.remove('on');
+            ledStates[idx] = false;
+        } else {
+            // Включаем выбранным цветом
+            fetch('/api/rgb_led', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ index: idx, color: selectedColor })
+            });
+            circle.classList.add('on');
+            ledStates[idx] = true;
+        }
+    });
+    ledRow.appendChild(circle);
+}
+
+// Выбор цвета
+const colorCircles = document.querySelectorAll('#colorPalette .color-circle');
+colorCircles.forEach(circle => {
+    circle.addEventListener('click', () => {
+        colorCircles.forEach(c => c.classList.remove('selected'));
+        circle.classList.add('selected');
+        selectedColor = parseInt(circle.dataset.color);
+    });
+});
+// Установим красный как активный
+document.querySelector('#colorPalette .color-circle[data-color="0"]').classList.add('selected');
+
+// Кнопка "Вся лента" – зажигает все 10 светодиодов выбранным цветом
+document.getElementById('btnAllLeds').addEventListener('click', () => {
+    for (let i = 1; i <= 10; i++) {
+        fetch('/api/rgb_led', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ index: i, color: selectedColor })
+        });
+        // Обновляем визуальное состояние
+        const ledCircle = document.querySelector(`.led-circle[data-index="${i}"]`);
+        if (ledCircle) {
+            ledCircle.classList.add('on');
+            ledStates[i] = true;
+        }
+    }
+});
+
+// ===== АУДИО =====
+document.getElementById('recordDuration').addEventListener('input', function() {
+    document.getElementById('recordDurationLabel').textContent = this.value;
+});
+document.getElementById('btnRecord').addEventListener('click', () => {
+    const duration = document.getElementById('recordDuration').value;
+    document.getElementById('recordResult').textContent = 'Запись...';
+    fetch('/api/record_audio', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ duration: parseInt(duration) })
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (d.status === 'ok') {
+            document.getElementById('recordResult').innerHTML = `✅ <a href="${d.url}" target="_blank">${d.filename}</a>
+                <button class="btn btn-warning" onclick="fetch('/api/play_mp3',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({filename:'${d.filename}'})})">▶️ Играть</button>`;
+        } else {
+            document.getElementById('recordResult').textContent = '❌ Ошибка записи';
+        }
+    });
+});
+document.getElementById('btnUploadPlay').addEventListener('click', () => {
+    document.getElementById('mp3FileInput').click();
+});
+document.getElementById('mp3FileInput').addEventListener('change', function() {
+    if (!this.files.length) return;
+    const fd = new FormData();
+    fd.append('file', this.files[0]);
+    fetch('/api/upload_mp3', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(d => {
+            if (d.status === 'ok') {
+                document.getElementById('lastMp3').textContent = 'Загружен: ' + d.filename;
+                fetch('/api/play_mp3', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ filename: d.filename })
+                });
+            }
+        });
+});
+
+// ===== РЕЧЬ =====
+let speechOn = false, speechPollInterval;
+const btnToggleSpeech = document.getElementById('btnToggleSpeech');
+const speechTextDiv = document.getElementById('speechText');
+btnToggleSpeech.addEventListener('click', () => {
+    speechOn = !speechOn;
+    fetch('/api/toggle_speech', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ active: speechOn })
+    });
+    btnToggleSpeech.textContent = speechOn ? 'Выключить' : 'Включить распознавание';
+    btnToggleSpeech.classList.toggle('btn-danger', speechOn);
+    if (speechOn) {
+        speechPollInterval = setInterval(() => {
+            fetch('/api/latest_speech')
+                .then(r => r.json())
+                .then(d => { if (d.text) speechTextDiv.textContent = d.text; });
+        }, 500);
+    } else {
+        clearInterval(speechPollInterval);
+    }
+});
+document.getElementById('btnSay').addEventListener('click', () => {
+    const text = document.getElementById('sayInput').value.trim();
+    if (text) fetch('/api/say', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({text}) });
+});
+
+// ===== ГАЛЕРЕЯ =====
+function loadGallery() {
+    fetch('/api/gallery')
+        .then(r => r.json())
+        .then(data => {
+            const grid = document.getElementById('galleryGrid');
+            grid.innerHTML = '';
+            if (!data.files || data.files.length === 0) {
+                grid.innerHTML = '<div style="color:#8b949e; padding:10px;">Нет файлов. Сделайте фото или запишите видео.</div>';
+                return;
+            }
+            data.files.forEach(file => {
+                const item = document.createElement('div');
+                item.className = 'gallery-item';
+                if (file.type === 'image') {
+                    item.innerHTML = `<img src="${file.url}" onclick="window.open('${file.url}')" onerror="this.style.display='none'"><div class="name">${file.name}</div>`;
+                } else {
+                    item.innerHTML = `<video src="${file.url}" controls style="max-height:120px;"></video><div class="name">${file.name}</div>`;
+                }
+                grid.appendChild(item);
+            });
+        })
+        .catch(() => {
+            document.getElementById('galleryGrid').innerHTML = '<div style="color:#8b949e;">Ошибка загрузки</div>';
+        });
+}
+document.getElementById('btnRefreshGallery').addEventListener('click', loadGallery);
+document.querySelector('[data-tab="gallery"]').addEventListener('click', loadGallery);
+
+// ===== СТАТУС =====
+function updateStatus() {
+    fetch('/api/status')
+        .then(r => r.json())
+        .then(d => {
+            document.getElementById('ipDisplay').textContent = d.ip || '...';
+            document.getElementById('cpuDisplay').textContent = d.cpu || '...';
+            document.getElementById('ramDisplay').textContent = d.ram || '...';
+        });
+}
+setInterval(updateStatus, 3000);
+updateStatus();
+</script>
+</body>
+</html>

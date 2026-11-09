@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>🤖 Управление роботом</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: #1a1a2e; color: #fff; padding: 10px; max-width: 600px; margin: 0 auto; }
+        h1 { text-align: center; margin: 10px 0; font-size: 24px; }
+        .panel { background: #16213e; border-radius: 16px; padding: 15px; margin: 10px 0; }
+        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .btn { background: #0f3460; border: none; border-radius: 12px; color: #fff; padding: 15px; font-size: 24px; cursor: pointer; transition: 0.2s; text-align: center; }
+        .btn:active { transform: scale(0.92); }
+        .btn-stop { background: #e94560; }
+        .btn-cam { background: #533483; }
+        .btn-rgb { background: #1b7a3a; }
+        .btn-beep { background: #f5a623; }
+        .btn-video { background: #0f3460; }
+        .slider-container { margin: 10px 0; display: flex; align-items: center; gap: 10px; }
+        .slider { flex: 1; -webkit-appearance: none; height: 8px; border-radius: 4px; background: #0f3460; outline: none; }
+        .slider::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%; background: #e94560; cursor: pointer; }
+        .value { min-width: 40px; text-align: center; }
+        .row { display: flex; gap: 10px; flex-wrap: wrap; }
+        .color-btn { width: 40px; height: 40px; border-radius: 50%; border: 2px solid #fff; cursor: pointer; }
+        .video-container { width: 100%; background: #000; border-radius: 12px; overflow: hidden; margin: 10px 0; }
+        .video-container img { width: 100%; display: block; }
+        .status { font-size: 14px; color: #aaa; margin: 5px 0; }
+    </style>
+</head>
+<body>
+    <h1>🤖 Управление Raspbot</h1>
+
+    <div class="panel">
+        <div class="grid">
+            <div></div>
+            <button class="btn" onclick="move('forward')">⬆</button>
+            <div></div>
+            <button class="btn" onclick="move('left')">⬅</button>
+            <button class="btn btn-stop" onclick="move('stop')">⏹</button>
+            <button class="btn" onclick="move('right')">➡</button>
+            <div></div>
+            <button class="btn" onclick="move('backward')">⬇</button>
+            <div></div>
+        </div>
+        <div class="slider-container">
+            <span>Скорость</span>
+            <input type="range" min="0" max="255" value="150" class="slider" id="speedSlider" oninput="currentSpeed=this.value; document.getElementById('speedVal').innerText=this.value">
+            <span class="value" id="speedVal">150</span>
+        </div>
+    </div>
+
+    <div class="panel">
+        <h3>Камера</h3>
+        <div class="grid">
+            <div></div>
+            <button class="btn btn-cam" onclick="servo(2, 150)">⬆</button>
+            <div></div>
+            <button class="btn btn-cam" onclick="servo(1, 30)">⬅</button>
+            <button class="btn btn-cam" onclick="servo(1, 90); servo(2, 90)">⏺</button>
+            <button class="btn btn-cam" onclick="servo(1, 150)">➡</button>
+            <div></div>
+            <button class="btn btn-cam" onclick="servo(2, 30)">⬇</button>
+            <div></div>
+        </div>
+    </div>
+
+    <div class="panel">
+        <h3>RGB-лента</h3>
+        <div class="row">
+            <button class="color-btn" style="background:#ff0000;" onclick="setRgb(true,0)"></button>
+            <button class="color-btn" style="background:#00ff00;" onclick="setRgb(true,1)"></button>
+            <button class="color-btn" style="background:#0000ff;" onclick="setRgb(true,2)"></button>
+            <button class="color-btn" style="background:#ffff00;" onclick="setRgb(true,3)"></button>
+            <button class="color-btn" style="background:#ff00ff;" onclick="setRgb(true,4)"></button>
+            <button class="color-btn" style="background:#00ffff;" onclick="setRgb(true,5)"></button>
+            <button class="color-btn" style="background:#ffffff;" onclick="setRgb(true,6)"></button>
+            <button class="color-btn" style="background:#222; border-color:#666;" onclick="setRgb(false,0)">⚫</button>
+        </div>
+    </div>
+
+    <div class="panel">
+        <h3>Звук</h3>
+        <button class="btn btn-beep" onclick="beep(true)">🔊 Вкл</button>
+        <button class="btn btn-beep" onclick="beep(false)">🔇 Выкл</button>
+    </div>
+
+    <div class="panel">
+        <h3>Видео</h3>
+        <button class="btn btn-video" onclick="video('start')">▶️ Запустить</button>
+        <button class="btn btn-video" onclick="video('stop')">⏹ Остановить</button>
+        <div class="video-container" id="videoContainer" style="display:none;">
+            <img src="/video_feed" id="videoFeed" alt="Видеопоток">
+        </div>
+    </div>
+
+    <div class="panel">
+        <div class="status" id="status">Статус: загрузка...</div>
+    </div>
+
+    <script>
+        let currentSpeed = 150;
+
+        function move(cmd) {
+            fetch('/api/move', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({cmd: cmd, speed: parseInt(currentSpeed)})
+            });
+        }
+
+        function servo(axis, angle) {
+            fetch('/api/servo', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({axis: axis, angle: angle})
+            });
+        }
+
+        function setRgb(state, color) {
+            fetch('/api/rgb', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({state: state, color: color})
+            });
+        }
+
+        function beep(state) {
+            fetch('/api/beep', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({state: state})
+            });
+        }
+
+        function video(action) {
+            fetch('/api/video', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({action: action})
+            }).then(() => {
+                if (action === 'start') {
+                    document.getElementById('videoContainer').style.display = 'block';
+                } else {
+                    document.getElementById('videoContainer').style.display = 'none';
+                }
+            });
+        }
+
+        function updateStatus() {
+            fetch('/api/status')
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById('status').innerHTML = `
+                        Скорость: ${data.speed} | 
+                        Камера H: ${data.camera_h}° V: ${data.camera_v}° |
+                        RGB: ${data.rgb_on ? 'вкл' : 'выкл'} |
+                        Звук: ${data.beep_on ? 'вкл' : 'выкл'} |
+                        Видео: ${data.video_stream ? '▶️' : '⏹'}
+                    `;
+                });
+        }
+
+        setInterval(updateStatus, 2000);
+        updateStatus();
+
+        // Автозапуск видео при загрузке
+        window.onload = function() {
+            video('start');
+        };
+    </script>
+</body>
+</html>
